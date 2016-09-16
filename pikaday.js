@@ -307,10 +307,9 @@
             arr.push('is-endrange');
         }
         return '<td data-day="' + opts.day + '" class="' + arr.join(' ') + '">' +
-                 '<button class="pika-button pika-day" type="button" ' +
-                    'data-pika-year="' + opts.year + '" data-pika-month="' + opts.month + '" data-pika-day="' + opts.day + '">' +
-                        opts.day +
-                 '</button>' +
+                 '<div class="pika-button" type="button"> ' +
+                    '<span class="pika-day" data-pika-year="' + opts.year + '" data-pika-month="' + opts.month + '" data-pika-day="' + opts.day + '">' + opts.day + '</span>' +
+                 '</div>' +
                '</td>';
     },
 
@@ -404,7 +403,7 @@
 
     renderTable = function(opts, data)
     {
-        return '<table cellpadding="0" cellspacing="0" class="pika-table">' + renderHead(opts) + renderBody(data) + '</table>';
+        return '<div class="pika-calendar"><table cellpadding="0" cellspacing="0" class="pika-table">' + renderHead(opts) + renderBody(data) + '</table></div>';
     },
 
 
@@ -428,7 +427,7 @@
             }
 
             if (!hasClass(target, 'is-disabled')) {
-                if (hasClass(target, 'pika-button') && !hasClass(target, 'is-empty')) {
+                if (hasClass(target, 'pika-day') && !hasClass(target, 'is-empty')) {
                     self.setDate(new Date(target.getAttribute('data-pika-year'), target.getAttribute('data-pika-month'), target.getAttribute('data-pika-day')));
                     if (opts.bound) {
                         sto(function() {
@@ -991,6 +990,12 @@
                 after -= 7;
             }
             cells += 7 - after;
+
+            //默认设置自定义日期每页为6行
+            if(cells === 35) {
+              cells = cells + 7;
+            }
+
             for (var i = 0, r = 0; i < cells; i++)
             {
                 var day = new Date(year, month, 1 + (i - before)),
@@ -1007,6 +1012,7 @@
                                  (opts.maxDate && day > opts.maxDate) ||
                                  (opts.disableWeekends && isWeekend(day)) ||
                                  (opts.disableDayFn && opts.disableDayFn(day));
+
 
                 if (isEmpty) {
                     if (i < before) {
@@ -1035,6 +1041,7 @@
                     };
 
                 row.push(renderDay(dayConfig));
+
 
                 if (++r === 7) {
                     if (opts.showWeekNumber) {
