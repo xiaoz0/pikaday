@@ -259,10 +259,12 @@
         theme: null,
 
         // callback function
+        onInit: null,
         onSelect: null,
         onOpen: null,
         onClose: null,
-        onDraw: null
+        onDraw: null,
+        onDestroy: null
     },
 
 
@@ -597,6 +599,8 @@
         } else {
             this.show();
         }
+
+        this.init();
     };
 
 
@@ -662,6 +666,13 @@
             }
 
             return opts;
+        },
+
+        init: function()
+        {
+            if (typeof this._o.onInit === 'function') {
+                this._o.onInit(this);
+            }
         },
 
         /**
@@ -1113,6 +1124,10 @@
             }
             if (this.el.parentNode) {
                 this.el.parentNode.removeChild(this.el);
+            }
+
+            if (typeof this._o.onDestroy === 'function') {
+                this._o.onDestroy(this);
             }
         }
 
