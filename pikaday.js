@@ -225,6 +225,7 @@
         startRange: null,
         endRange: null,
 
+		showTime: false,  //show hour and minute
         isRTL: false,
 
         // Additional text to append to the year in the calendar title
@@ -266,7 +267,6 @@
         onDraw: null,
         onDestroy: null
     },
-
 
     /**
      * templating functions to abstract HTML rendering
@@ -408,6 +408,31 @@
         return '<div class="pika-calendar"><table cellpadding="0" cellspacing="0" class="pika-table">' + renderHead(opts) + renderBody(data) + '</table></div>';
     },
 
+	renderTime = function(self, opts) {
+		var result = '',
+			selDate = new Date((isDate(self._d) ? self._d : isDate(opts.defaultDate) ? opts.defaultDate : new Date()).setHours(0,0,0,0));
+
+		if (!opts.showTime) {
+			return result;
+		}
+		addClass(self.el, 'pika-split-time')
+		for (var h = 0; h < 24; h++) {
+			for (var m = 0; m < 60; m++) {
+				var isSelected = self._hour === h && self._minute === m ? true : false
+				result += renderTimeOption(zeroFill(h), zeroFill(m), isSelected)
+			}
+		}
+		return '<div class="pika-timepicker"><select class="pika-select pika-select-time" size="14">'+ result +'</select></div>'
+	},
+
+	renderTimeOption = function(hour, minute, isSelected = false) {
+		return '<option ' + (isSelected ? 'selected' : '') + '  value = "' + hour + ':' + minute + '">' +  hour + ':' + minute + "</option>"
+	},
+
+	zeroFill = function(num) {
+        return num < 10 ? '0' + num : num;
+    },
+
 
     /**
      * Pikaday constructor
@@ -416,7 +441,6 @@
     {
         var self = this,
             opts = self.config(options);
-
         self._onMouseDown = function(e)
         {
             if (!self._v) {
@@ -427,10 +451,10 @@
             if (!target) {
                 return;
             }
-
+            
             if (!hasClass(target, 'is-disabled')) {
                 if (hasClass(target, 'pika-day') && !hasClass(target, 'is-empty')) {
-                    self.setDate(new Date(target.getAttribute('data-pika-year'), target.getAttribute('data-pika-month'), target.getAttribute('data-pika-day')));
+                    self.setDate(new Date(target.getAttribute('data-pika-year'), target.getAttribute('data-pika-month'), target.getAttribute('data-pika-day'), self._hour, self._minute));
                     if (opts.bound) {
                         sto(function() {
                             self.hide();
@@ -447,7 +471,8 @@
                     self.nextMonth();
                 }
             }
-            if (!hasClass(target, 'pika-select')) {
+
+            if (!hasClass(target, 'pika-select') && target.tagName !== 'OPTION') {
                 // if this is touch event prevent mouse events emulation
                 if (e.preventDefault) {
                     e.preventDefault();
@@ -460,10 +485,10 @@
             }
         };
 
-        self._onChange = function(e)
-        {
+        self._onChange = function(e) {
             e = e || window.event;
-            var target = e.target || e.srcElement;
+            var target = e.target || e.srcElement,
+				hours, parts;
             if (!target) {
                 return;
             }
@@ -472,7 +497,11 @@
             }
             else if (hasClass(target, 'pika-select-year')) {
                 self.gotoYear(target.value);
-            }
+            } else if (hasClass(target, 'pika-select-time')) {
+				parts = target.value.split(':');
+                self._hour = parseInt(parts[0]);
+                self._minute = parseInt(parts[1]);
+			}
         };
 
         self._onInputChange = function(e)
@@ -508,7 +537,7 @@
         };
 
         self._onInputBlur = function()
-        {
+        {   
             // IE allows pika div to gain focus; catch blur the input field
             var pEl = document.activeElement;
             do {
@@ -527,7 +556,7 @@
         };
 
         self._onClick = function(e)
-        {
+        {  
             e = e || window.event;
             var target = e.target || e.srcElement,
                 pEl = target;
@@ -570,7 +599,8 @@
 
             if (!opts.defaultDate) {
                 if (hasMoment && opts.field.value) {
-                    opts.defaultDate = moment(opts.field.value, opts.format).toDate();
+					var format = opts.showTime ? opts._TimeFormat : opts.format
+                    opts.defaultDate = moment(opts.field.value, format).toDate();
                 } else {
                     opts.defaultDate = new Date(Date.parse(opts.field.value));
                 }
@@ -582,6 +612,8 @@
 
         if (isDate(defDate)) {
             if (opts.setDefaultDate) {
+				this._hour = defDate.getHours()
+				this._minute =  defDate.getMinutes()
                 self.setDate(defDate, true);
             } else {
                 self.gotoDate(defDate);
@@ -609,6 +641,9 @@
      */
     Pikaday.prototype = {
 
+		_hour: 0,
+        _minute: 0,
+		_TimeFormat: 'YYYY-MM-DD HH:ss',
 
         /**
          * configure functionality
@@ -679,7 +714,10 @@
          * return a formatted string of the current selection (using Moment.js if available)
          */
         toString: function(format)
-        {
+        {	
+			if (this._o.showTime) {
+				format = format || 'YYYY-MM-DD HH:mm';
+			}
             return !isDate(this._d) ? '' : hasMoment ? moment(this._d).format(format || this._o.format) : this._d.toDateString();
         },
 
@@ -713,10 +751,9 @@
          * set the current selection
          */
         setDate: function(date, preventOnSelect)
-        {
+        {	
             if (!date) {
                 this._d = null;
-
                 if (this._o.field) {
                     this._o.field.value = '';
                     fireEvent(this._o.field, 'change', { firedBy: this });
@@ -739,11 +776,7 @@
             } else if (isDate(max) && date > max) {
                 date = max;
             }
-
             this._d = new Date(date.getTime());
-            setToStartOfDay(this._d);
-            this.gotoDate(this._d);
-
             if (this._o.field) {
                 this._o.field.value = this.toString();
                 fireEvent(this._o.field, 'change', { firedBy: this });
@@ -751,6 +784,8 @@
             if (!preventOnSelect && typeof this._o.onSelect === 'function') {
                 this._o.onSelect.call(this, this.getDate());
             }
+			setToStartOfDay(this._d);
+            this.gotoDate(this._d);
         },
 
         /**
@@ -783,7 +818,6 @@
                     this.calendars[0].month += 1 - this._o.numberOfMonths;
                 }
             }
-
             this.adjustCalendars();
         },
 
@@ -903,7 +937,7 @@
                 html += '<div class="pika-lendar">' + renderTitle(this, c, this.calendars[c].year, this.calendars[c].month, this.calendars[0].year) + this.render(this.calendars[c].year, this.calendars[c].month) + '</div>';
             }
 
-            this.el.innerHTML = html;
+            this.el.innerHTML = html + renderTime(this, opts);
 
             if (opts.bound) {
                 if(opts.field.type !== 'hidden') {
